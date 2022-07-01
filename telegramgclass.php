@@ -102,6 +102,7 @@ class TG
                 'chat_id' => $id,
                 'message_id' => $msg_id,
                 'text' => $message,
+                'parse_mode' => 'HTML',
                 'reply_markup' => $encodedMarkup
             );
         } else {
