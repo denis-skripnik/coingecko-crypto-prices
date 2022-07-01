@@ -7,7 +7,11 @@ If you want to get SMA, enter the command:
 Where:
 bitcoin - cryptocurrency id in coingecko;
 usd - pair (you can also specify cryptocurrencies);
-23 - the number of days.',
+23 - the number of days.
+
+To get the rate of a token with a lower capitalization, when a token with a higher capitalization is reached, enter the command:
+/mc ATOM,SOL
+Where ATOM and SOL are the tickers of the desired projects.',
 'now_price' => 'Now price: ',
 'support_area' => 'Support Area: ',
 'resistance_zone' => 'Resistance zone: ',
