@@ -1,5 +1,6 @@
 <?php
 require_once('functions.php');
+require_once('db.php');
 $t = [];
 $t['ru'] = require 'lng/ru.php';
 $t['en'] = require 'lng/en.php';
@@ -14,6 +15,7 @@ include_once ('telegramgclass.php');
 $tg = new tg($api_key);
 $sended = [];
 $chat_id;
+$from_id;
 $text;
 if (isset($arr['message']['from']['language_code'])) $lang = $arr['message']['from']['language_code'];
 if (isset($arr['callback_query']['from']['language_code'])) $lang = $arr['callback_query']['from']['language_code'];
@@ -21,7 +23,9 @@ if (isset($arr['callback_query']['message']['from']['language_code'])) $lang = $
 if ($lang !== 'ru') $lang = 'en';
 if (isset($arr['message']['chat']['id'])) $chat_id = $arr['message']['chat']['id'];
 if (isset($arr['callback_query']['message']['chat']['id'])) $chat_id = $arr['callback_query']['message']['chat']['id'];
-    if (isset($arr['callback_query']['data'])) $text = $arr['callback_query']['data'];
+if (isset($arr['message']['from']['id'])) $from_id = $arr['message']['from']['id'];
+if (isset($arr['callback_query']['from']['id'])) $from_id = $arr['callback_query']['from']['id'];    
+if (isset($arr['callback_query']['data'])) $text = $arr['callback_query']['data'];
 if (isset($arr['message']['text'])) $text = $arr['message']['text'];
     $action = mb_substr($text, 1);
     $action = explode("@", $action)[0];
@@ -29,41 +33,63 @@ if (isset($arr['message']['text'])) $text = $arr['message']['text'];
         $tg->delete($chat_id, $arr['message']['message_id']);
     }
 
-if ($text && $text === '/start' || $text && strpos($text, '/start') !== false || $text && $text === '/help' || $text && strpos($text, '/help') !== false) {
+    if ($text && $text === '/start' || $text && strpos($text, '/start') !== false || $text && $text === '/help' || $text && strpos($text, '/help') !== false) {
+    if (strpos($text, 'portfoleo') !== false) {
+$portfoleo_id = explode('portfoleo', $text)[1];
+        $coins = getFavorites($portfoleo_id);
+        if ($coins !== false) {
+            $msg = $t[$lang]['select_favorites_project'].'https://t.me/blind_dev_prices_bot?start=portfoleo'.$portfoleo_id;
+            $arInfo["inline_keyboard"] = [];
+            $row = 0;
+            $b_counter = 1;
+            foreach ($coins as $token) {
+            $arInfo["inline_keyboard"][$row][$b_counter-1]["callback_data"] = '$'.$token;
+            $arInfo["inline_keyboard"][$row][$b_counter-1]['text'] = $token;
+            if ($b_counter % 3 == 0) {
+                $row++;
+                $b_counter = 1;
+            } else {
+                $b_counter++;
+            }
+        }
+    } else {
+            $msg = $t[$lang]['not_favorites'];
+            $arInfo["inline_keyboard"] = [];
+        }
+    } else {
         $msg = $t[$lang]['home_text'];
-    $arInfo["inline_keyboard"][0][0]["url"] = 'https://t.me/blind_dev_bot';
-    $arInfo["inline_keyboard"][0][0]['text'] = 'Main bot';
-    $arInfo["inline_keyboard"][0][1]["url"] = 'https://t.me/blind_dev_chat';
-    $arInfo["inline_keyboard"][0][1]['text'] = 'Chat';
-    $arInfo["inline_keyboard"][1][0]["url"] = 'https://dpos.space';
-    $arInfo["inline_keyboard"][1][0]['text'] = 'Multi blockchains site';
-    $arInfo["inline_keyboard"][1][1]["url"] = 'https://github.com/denis-skripnik';
-    $arInfo["inline_keyboard"][1][1]['text'] = 'Author github';
+        $arInfo["inline_keyboard"][0][0]["url"] = 'https://t.me/blind_dev_bot';
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['main_bot'];
+        $arInfo["inline_keyboard"][0][1]["url"] = 'https://t.me/blind_dev_chat';
+        $arInfo["inline_keyboard"][0][1]['text'] = $t[$lang]['chat'];
+        $arInfo["inline_keyboard"][1][0]["url"] = 'https://t.me/blind_dev';
+        $arInfo["inline_keyboard"][1][0]['text'] = $t[$lang]['channel'];
+        $arInfo["inline_keyboard"][1][1]["url"] = 'https://github.com/denis-skripnik';
+        $arInfo["inline_keyboard"][1][1]['text'] = $t[$lang]['github'];    
+    }
     $sended = $tg->send($chat_id, $msg, 0, $arInfo);
     } else if ($text && $text === '/interest' || $text && strpos($text, '/interest') !== false) {
-        $tokens = file_get_contents("https://dpos.space/crypto-prices/tokens.txt");
-$prices = getPage('https://api.coingecko.com/api/v3/coins/markets?vs_currency=USD&ids='.$tokens.'&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h');
-$bip_price = 0;
-$text2 = 'Список интересных мне криптовалют с их ценами на данный момент и процентами изменения за сутки:
-';
-foreach ($prices as $coin) {
-    $direction = '⬆';
-    if ($coin['price_change_percentage_24h'] < 0) $direction = '⬇';
-    $text2 .= $coin['id'].' ('.$coin['symbol'].') - $'.$coin['current_price'].' ('.$direction.' '.$coin['price_change_percentage_24h'].'%),
-';
-if ($coin['symbol'] === 'bip') $bip_price = $coin['current_price'];
-}
-
-$viz = getPage('https://api.minter.one/v2/swap_pool/0/1969');
-$viz_amount0 = (float)$viz['amount0'] / (10 ** 18);
-$viz_amount1 = (float)$viz['amount1'] / (10 ** 18);
-$viz_bip_price = $viz_amount0 / $viz_amount1;
-$viz_usd_price = $viz_bip_price * $bip_price;
-$viz_usd_price = round($viz_usd_price, 5);
-$text2 .= 'Viz (VIZ) - '.$viz_usd_price;
-
-$arInfo["inline_keyboard"] = [];
-$sended = $tg->send($chat_id, $text2, 0, $arInfo);
+        $coins = getFavorites($chat_id);
+        if ($coins !== false) {
+            $msg = $t[$lang]['select_favorites_project'].'https://t.me/blind_dev_prices_bot?start=portfoleo'.$chat_id;
+            $arInfo["inline_keyboard"] = [];
+            $row = 0;
+            $b_counter = 1;
+            foreach ($coins as $token) {
+            $arInfo["inline_keyboard"][$row][$b_counter-1]["callback_data"] = '$'.$token;
+            $arInfo["inline_keyboard"][$row][$b_counter-1]['text'] = $token;
+            if ($b_counter % 3 == 0) {
+                $row++;
+                $b_counter = 1;
+            } else {
+                $b_counter++;
+            }
+        }
+    } else {
+            $msg = $t[$lang]['not_favorites'];
+            $arInfo["inline_keyboard"] = [];
+        }
+            $sended = $tg->send($chat_id, $msg, 0, $arInfo);
 } else if ($text && strpos($text, '/sma') !== false) {
 $data = explode(' ', $text);
 $pair = mb_strtolower($data[1]);
@@ -122,6 +148,7 @@ $sended = $tg->send($chat_id, $msg, 0, $arInfo);
     $arInfo["inline_keyboard"] = [];
     $row = 0;
     $b_counter = 1;
+    $all_projects = [];
     foreach ($prices as $key => $token) {
         foreach ($prices as $key2 => $token2) {
         if ($key2 === $key) continue;
@@ -131,14 +158,17 @@ $sended = $tg->send($chat_id, $msg, 0, $arInfo);
                 $pair = $token2['id'].','.$token['id'];
                 $projects = $token2['name'].','.$token['name'];
             }
-            $arInfo["inline_keyboard"][$row][$b_counter-1]["callback_data"] = '/comcap '.$pair;
-    $arInfo["inline_keyboard"][$row][$b_counter-1]['text'] = $projects;
-    if ($b_counter % 3 == 0) {
-        $row++;
-        $b_counter = 1;
-    } else {
-        $b_counter++;
-    }
+if (array_search($pair, $all_projects) === false) {
+    array_push($all_projects, $pair);
+    $arInfo["inline_keyboard"][$row][$b_counter-1]["callback_data"] = '/comcap '.$pair;
+$arInfo["inline_keyboard"][$row][$b_counter-1]['text'] = $projects;
+if ($b_counter % 3 == 0) {
+$row++;
+$b_counter = 1;
+} else {
+$b_counter++;
+}
+}
 } // end foreach 2.
 } // end foreach 1.
     $sended = $tg->send($chat_id, $msg, 0, $arInfo);
@@ -178,7 +208,54 @@ if (!isset($arr['message']) && isset($arr['callback_query'])) {
         $sended = $tg->send($chat_id, $msg, 0, $arInfo);
     }
 }
-} else if (strpos($text, '/') !== false) {
+} else if ($text && strpos($text, '/+') !== false) {
+    $coin_id = explode(' ', $text)[1];
+$chat_user = [];
+if ($chat_id < 0)         $chat_user = $tg->getChatMember($chat_id, $from_id);
+if ($chat_user['result']['status'] === 'creator' || $chat_user['result']['status'] === 'administrator' || $chat_id === $from_id) {
+            $res = addFavorites($chat_id, $coin_id);
+            if ($res === true) {
+                $msg = $t[$lang]['added_to_favorites'].': '.$coin_id;
+            } else {
+                $msg = $t[$lang]['not_added_to_favorites'].': '.$coin_id;
+            } // end if res.
+                    } // yes user.
+    else {
+        $msg = $t[$lang]['no_access_to_change_favorites'];
+    }
+                    $arInfo["inline_keyboard"][0][0]["callback_data"] = '/start';
+    $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['home_button'];
+    if (!isset($arr['message']) && isset($arr['callback_query'])) {
+        $msg_id = $arr['callback_query']['message']['message_id'];
+        $sended = $tg->edit($chat_id, $msg_id, $msg, $arInfo);
+        } else {
+            $sended = $tg->send($chat_id, $msg, 0, $arInfo);
+        }
+} else if ($text && strpos($text, '/-') !== false) {
+    $coin_id = explode(' ', $text)[1];
+    $chat_user = [];
+    if ($chat_id < 0)         $chat_user = $tg->getChatMember($chat_id, $from_id);
+    if ($chat_user['result']['status'] === 'creator' || $chat_user['result']['status'] === 'administrator' || $chat_id === $from_id) {
+    $res = deleteFavorites($chat_id, $coin_id);
+if ($res === true) {
+    $msg = $t[$lang]['deleted_favorite'].': '.$coin_id;
+} else {
+    $msg = $t[$lang]['not_deleted_favorite'].': '.$coin_id;
+} // end if res.
+} // yes user.
+else {
+$msg = $t[$lang]['no_access_to_change_favorites'];
+}
+
+$arInfo["inline_keyboard"][0][0]["callback_data"] = '/start';
+    $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['home_button'];
+    if (!isset($arr['message']) && isset($arr['callback_query'])) {
+        $msg_id = $arr['callback_query']['message']['message_id'];
+        $sended = $tg->edit($chat_id, $msg_id, $msg, $arInfo);
+        } else {
+            $sended = $tg->send($chat_id, $msg, 0, $arInfo);
+        }
+} else if ($text && strpos($text, '/') !== false) {
     $prices = getPage('https://api.coingecko.com/api/v3/coins/markets?vs_currency=USD&symbols='.mb_strtolower($action).'&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y');
 if (count($prices) === 1) {
     $token = $prices[0];
@@ -211,6 +288,29 @@ if (!isset($token['symbol'])) return;
 '.$t[$lang]['1y'].round($token['price_change_percentage_1y_in_currency'], 3).'%.
 ';
 $arInfo["inline_keyboard"] = [];
+$chat_user = [];
+if ($chat_id < 0)         $chat_user = $tg->getChatMember($chat_id, $from_id);
+if ($chat_user['result']['status'] === 'creator' || $chat_user['result']['status'] === 'administrator' || $chat_id === $from_id) {
+    $favorites = getFavorites($chat_id);
+    if ($favorites !== false && count($favorites) > 0) {
+    $isFavorites = 0;
+        foreach ($favorites as $el) {
+        if (strpos($el, $token['id']) !== false) {
+            $isFavorites++;
+        }
+    }
+    if ($isFavorites === 0) {
+        $arInfo["inline_keyboard"][0][0]["callback_data"] = '/+ '.$token['id'];
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['add_to_favorites'];
+    } else {
+        $arInfo["inline_keyboard"][0][0]["callback_data"] = '/- '.$token['id'];
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['delete_from_favorites'];
+    }
+    } else {
+        $arInfo["inline_keyboard"][0][0]["callback_data"] = '/+ '.$token['id'];
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['add_to_favorites'];
+    }
+}
 $sended = $tg->send($chat_id, $msg, 0, $arInfo);
 } else if (count($prices) > 1) {
         $msg = $t[$lang]['select_project'];
@@ -229,7 +329,7 @@ $sended = $tg->send($chat_id, $msg, 0, $arInfo);
 }
     $sended = $tg->send($chat_id, $msg, 0, $arInfo);
 }
-} else if (strpos($text, '$') !== false) {
+} else if ($text && strpos($text, '$') !== false) {
     $prices = getPage('https://api.coingecko.com/api/v3/coins/markets?vs_currency=USD&ids='.mb_strtolower($action).'&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=1h,24h,7d,14d,30d,1y');
 $token = $prices[0];
 $price_data = sprintf("%.11f", $token['current_price']);
@@ -261,6 +361,29 @@ $msg = strtoupper($token['symbol']).'/USD (<a href="https://coingecko.com/en/coi
 '.$t[$lang]['1y'].round($token['price_change_percentage_1y_in_currency'], 3).'%.
 ';
 $arInfo["inline_keyboard"] = [];
+$chat_user = [];
+if ($chat_id < 0)         $chat_user = $tg->getChatMember($chat_id, $from_id);
+if ($chat_user['result']['status'] === 'creator' || $chat_user['result']['status'] === 'administrator' || $chat_id === $from_id) {
+    $favorites = getFavorites($chat_id);
+    if ($favorites !== false && count($favorites) > 0) {
+    $isFavorites = 0;
+        foreach ($favorites as $el) {
+        if (strpos($el, $token['id']) !== false) {
+            $isFavorites++;
+        }
+    }
+    if ($isFavorites === 0) {
+        $arInfo["inline_keyboard"][0][0]["callback_data"] = '/+ '.$token['id'];
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['add_to_favorites'];
+    } else {
+        $arInfo["inline_keyboard"][0][0]["callback_data"] = '/- '.$token['id'];
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['delete_from_favorites'];
+    }
+    } else {
+        $arInfo["inline_keyboard"][0][0]["callback_data"] = '/+ '.$token['id'];
+        $arInfo["inline_keyboard"][0][0]['text'] = $t[$lang]['add_to_favorites'];
+    }
+}
 if (!isset($arr['message']) && isset($arr['callback_query'])) {
 $msg_id = $arr['callback_query']['message']['message_id'];
 $sended = $tg->edit($chat_id, $msg_id, $msg, $arInfo);
